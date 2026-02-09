@@ -53,11 +53,16 @@ function applyHighlight(textToHighlight, color = "#ffff99") {
   });
 }
 
+// ========== Hiển thị menu đơn giản khi click highlight ==========
+// ========== Hiển thị menu nhỏ gọn khi click highlight ==========
 /**
- * Hiển thị menu nhỏ khi click vào vùng highlight
- * @param {HTMLElement} span - phần tử span được click
- * @param {string} text - text gốc của highlight group
- * @param {string} currentColor - màu hiện tại
+ * Hiển thị menu compact khi click vào vùng đã highlight
+ * - Font nhỏ, border mỏng, khoảng cách giảm để gọn gàng
+ * - Dòng 1: "Color:" + ô vuông màu nhỏ
+ * - Dòng 2: Nút Delete đỏ compact
+ * @param {HTMLElement} span - span highlight được click
+ * @param {string} text - text gốc của nhóm highlight (dùng để group)
+ * @param {string} currentColor - màu hiện tại của nhóm
  */
 function showHighlightMenu(span, text, currentColor) {
   // Xóa menu cũ nếu tồn tại
@@ -65,55 +70,103 @@ function showHighlightMenu(span, text, currentColor) {
 
   const menu = document.createElement("div");
   menu.className = "highlight-context-menu";
-  menu.style.position = "absolute";
-  menu.style.background = "#fff";
-  menu.style.border = "1px solid #ccc";
-  menu.style.padding = "8px";
-  menu.style.zIndex = "10000";
-  menu.style.boxShadow = "2px 2px 6px rgba(0,0,0,0.2)";
-  menu.style.minWidth = "120px";
-
-  const rect = span.getBoundingClientRect();
-  menu.style.top = `${rect.bottom + window.scrollY + 5}px`;
-  menu.style.left = `${rect.left + window.scrollX}px`;
-
-  // Danh sách màu lựa chọn
-  const colors = [
-    { name: "Vàng", value: "#ffff99" },
-    { name: "Xanh lá", value: "#ccffcc" },
-    { name: "Hồng", value: "#ffccff" },
-    { name: "Xanh dương", value: "#cce5ff" },
-    { name: "Cam", value: "#ffe5cc" }
-  ];
-
-  colors.forEach(c => {
-    const btn = document.createElement("button");
-    btn.textContent = c.name;
-    btn.style.display = "block";
-    btn.style.width = "100%";
-    btn.style.margin = "4px 0";
-    btn.style.background = c.value;
-    btn.style.border = currentColor === c.value ? "2px solid #000" : "1px solid #aaa";
-    btn.onclick = () => {
-      // Đổi màu tất cả span thuộc cùng group text
-      document.querySelectorAll(`span.simple-highlight[data-text="${CSS.escape(text)}"]`)
-        .forEach(el => {
-          el.style.backgroundColor = c.value;
-        });
-      menu.remove();
-    };
-    menu.appendChild(btn);
+  Object.assign(menu.style, {
+    position: "absolute",
+    background: "#ffffff",
+    border: "1px solid #d0d0d0",         // border nhẹ hơn
+    borderRadius: "6px",
+    padding: "8px",                       // giảm padding
+    zIndex: "10001",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+    minWidth: "160px",                    // gọn hơn
+    fontFamily: "system-ui, sans-serif",
+    fontSize: "13px",                     // font nhỏ hơn
+    lineHeight: "1.3"
   });
 
-  // Nút xoá group highlight
+  // Vị trí menu
+  const rect = span.getBoundingClientRect();
+  menu.style.top = `${rect.bottom + window.scrollY + 4}px`;   // sát hơn
+  menu.style.left = `${rect.left + window.scrollX}px`;
+
+  // Dòng 1: Color + swatches nhỏ gọn
+  const colorRow = document.createElement("div");
+  Object.assign(colorRow.style, {
+    display: "flex",
+    alignItems: "center",
+    marginBottom: "8px"                   // giảm khoảng cách
+  });
+
+  const label = document.createElement("span");
+  label.textContent = "Color:";
+  Object.assign(label.style, {
+    marginRight: "6px",
+    fontWeight: "500",
+    color: "#444"
+  });
+  colorRow.appendChild(label);
+
+  // Danh sách màu (giữ nguyên thứ tự bạn đang dùng)
+  const colors = [
+    "#ffff99",   // vàng
+    "#ccffcc",   // xanh lá
+    "#b9e2f5",   // xanh dương
+    "#ffa29f",   // hồng
+    "#c0c0c0"    // xám (censor?)
+  ];
+
+  colors.forEach(color => {
+    const btn = document.createElement("button");
+    Object.assign(btn.style, {
+      width: "22px",                      // nhỏ hơn
+      height: "22px",
+      margin: "0 3px",                    // khoảng cách hẹp hơn
+      backgroundColor: color,
+      border: currentColor === color 
+        ? "2px solid #555"                // active border mỏng & đậm vừa
+        : "1px solid #ccc",               // border nhẹ
+      borderRadius: "4px",
+      cursor: "pointer",
+      boxShadow: currentColor === color 
+        ? "0 0 0 2px #fff inset" 
+        : "inset 0 1px 2px rgba(0,0,0,0.08)",
+      flexShrink: 0
+    });
+
+    btn.title = color;
+    btn.onclick = () => {
+      document.querySelectorAll(`span.simple-highlight[data-text="${CSS.escape(text)}"]`)
+        .forEach(el => el.style.backgroundColor = color);
+      menu.remove();
+    };
+    colorRow.appendChild(btn);
+  });
+
+  menu.appendChild(colorRow);
+
+  // Dòng 2: Nút Delete compact
   const deleteBtn = document.createElement("button");
-  deleteBtn.textContent = "Xoá highlight này";
-  deleteBtn.style.display = "block";
-  deleteBtn.style.width = "100%";
-  deleteBtn.style.marginTop = "8px";
-  deleteBtn.style.background = "#ffcccc";
+  deleteBtn.textContent = "Delete highlight";
+  Object.assign(deleteBtn.style, {
+    display: "flex",              // <-- Dùng flex
+  alignItems: "center",         // Căn giữa theo chiều dọc
+  justifyContent: "center",     // Căn giữa theo chiều ngang
+  width: "100%",
+  padding: "6px 0",
+  backgroundColor: "#ff4d4d",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: "4px",
+  fontSize: "13px",
+  fontWeight: "500",
+  cursor: "pointer",
+    cursor: "pointer"
+  });
+
+  deleteBtn.onmouseover = () => { deleteBtn.style.backgroundColor = "#ff3333"; };
+  deleteBtn.onmouseout  = () => { deleteBtn.style.backgroundColor = "#ff4d4d"; };
+
   deleteBtn.onclick = () => {
-    // Xoá tất cả span thuộc cùng group text
     document.querySelectorAll(`span.simple-highlight[data-text="${CSS.escape(text)}"]`)
       .forEach(el => {
         const parent = el.parentNode;
@@ -122,11 +175,12 @@ function showHighlightMenu(span, text, currentColor) {
       });
     menu.remove();
   };
+
   menu.appendChild(deleteBtn);
 
   document.body.appendChild(menu);
 
-  // Đóng menu khi click ra ngoài
+  // Đóng menu khi click ngoài
   const closeMenu = (e) => {
     if (!menu.contains(e.target)) {
       menu.remove();

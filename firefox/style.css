@@ -1,8 +1,24 @@
 .simple-highlight {
   background-color: #ffff99; /* fallback */
-  transition: background-color 0.2s;
+  transition: background-color 0.25s ease;
+  border-radius: 3px;
+}
+
+.highlight-context-menu {
+  user-select: none;
+  border-radius: 8px;
 }
 
 .highlight-context-menu button:hover {
-  opacity: 0.85;
+  opacity: 0.92;
+  transform: scale(1.1); /* zoom nhẹ khi hover, đẹp hơn */
+  transition: all 0.15s ease;
+}
+
+/* Optional: Nếu menu bị cắt trên mobile cực nhỏ, có thể thêm */
+@media (max-width: 400px) {
+  .highlight-context-menu {
+    max-width: 90vw !important; /* chiếm gần full width màn hình nhỏ */
+    left: 5vw !important;       /* canh giữa-ish */
+  }
 }
