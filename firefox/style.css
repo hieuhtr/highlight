@@ -1,0 +1,8 @@
+.simple-highlight {
+  background-color: #ffff99; /* fallback */
+  transition: background-color 0.2s;
+}
+
+.highlight-context-menu button:hover {
+  opacity: 0.85;
+}

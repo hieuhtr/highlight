@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Simple Text Highlighter",
+  "version": "1.0.0",
+  "description": "Highlight selected text in yellow, persists across page reloads using IndexedDB",
+  "permissions": [
+    "contextMenus",
+    "activeTab",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["/content-script.js"],
+      "css": ["/styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "icons": {
+    "48": "/icon48.png",
+    "96": "/icon96.png"
+  }
+}
