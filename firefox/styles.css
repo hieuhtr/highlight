@@ -1,24 +1,34 @@
-.simple-highlight {
+.highlight-censor {
   background-color: #ffff99; /* fallback */
   transition: background-color 0.25s ease;
   border-radius: 3px;
 }
 
-.highlight-context-menu {
+.highlight-censor-context-menu {
   user-select: none;
   border-radius: 8px;
 }
 
-.highlight-context-menu button:hover {
+.highlight-censor-context-menu button:hover {
   opacity: 0.92;
-  transform: scale(1.1); /* zoom nhẹ khi hover, đẹp hơn */
+  transform: scale(1.01); /* zoom nhẹ khi hover, đẹp hơn */
   transition: all 0.15s ease;
 }
 
 /* Optional: Nếu menu bị cắt trên mobile cực nhỏ, có thể thêm */
 @media (max-width: 400px) {
-  .highlight-context-menu {
+  .highlight-censor-context-menu {
     max-width: 90vw !important; /* chiếm gần full width màn hình nhỏ */
     left: 5vw !important;       /* canh giữa-ish */
   }
 }
+
+/* Trạng thái censored: ẩn hoàn toàn nội dung */
+.highlight-censor.censored {
+  background-color: #000 !important;
+  color: #000 !important;
+  user-select: none;
+  cursor: default;
+}
+
+/* Không cần thêm hover vì đã ẩn hoàn toàn */

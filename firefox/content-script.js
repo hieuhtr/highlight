@@ -1,41 +1,38 @@
-// content-script.js - Highlight tạm thời, chính xác phần được chọn (không search toàn trang)
+// content-script.js
 
 // ========== Highlight rendering logic ==========
 
-let highlightCounter = 0; // Để tạo ID unique cho mỗi highlight group
+let highlightCounter = 0;
 
 /**
- * Highlight chính xác phần text đang được chọn (selection ranges)
- * - Không tìm kiếm toàn trang → tránh highlight thừa
- * - Hỗ trợ selection cross nhiều text node
- * - Trả về groupId để quản lý (đổi màu / xoá)
- * @param {string} defaultColor - màu mặc định
- * @returns {string} groupId - ID unique của highlight vừa tạo
+ * Highlight chính xác phần text đang được chọn
+ * Lưu originalText ngay từ lúc tạo để dễ khôi phục sau
  */
 function highlightCurrentSelection(defaultColor = "#ffff99") {
   const selection = window.getSelection();
   if (selection.rangeCount === 0 || selection.isCollapsed) return null;
 
   highlightCounter++;
-  const groupId = `hl-group-${Date.now()}-${highlightCounter}`; // unique ID
+  const groupId = `hl-group-${Date.now()}-${highlightCounter}`;
 
   const ranges = [];
   for (let i = 0; i < selection.rangeCount; i++) {
     ranges.push(selection.getRangeAt(i));
   }
 
-  // Áp dụng từ cuối về đầu để tránh lệch offset
   ranges.reverse().forEach(range => {
     try {
       const span = document.createElement("span");
-      span.className = "simple-highlight";
+      span.className = "highlight-censor";
       span.style.backgroundColor = defaultColor;
       span.style.cursor = "pointer";
-      span.dataset.groupId = groupId;           // Dùng groupId thay vì text gốc
+      span.dataset.groupId = groupId;
+
+      // Lưu text gốc ngay lúc wrap (để censor/un-censor/delete dùng lại)
+      span.dataset.originalText = range.toString();
 
       range.surroundContents(span);
 
-      // Click để hiện menu
       span.addEventListener("click", (e) => {
         e.stopPropagation();
         showHighlightMenu(span, groupId, defaultColor);
@@ -45,24 +42,67 @@ function highlightCurrentSelection(defaultColor = "#ffff99") {
     }
   });
 
-  // Clear selection sau khi highlight
   selection.removeAllRanges();
-
   return groupId;
 }
 
 /**
- * Hiển thị menu khi click vào highlight
- * - Dùng groupId để quản lý toàn bộ spans thuộc cùng group
- * @param {HTMLElement} span - span được click
- * @param {string} groupId - ID của group highlight
- * @param {string} currentColor - màu hiện tại
+ * Toggle censor / un-censor cho group
+ * - Censor: ẩn text bằng nền đen + chữ đen
+ * - Un-censor: khôi phục text gốc + XÓA HẾT style màu nền
  */
-function showHighlightMenu(span, groupId, currentColor) {
-  document.querySelectorAll('.highlight-context-menu').forEach(el => el.remove());
+function toggleCensor(groupId) {
+  const spans = document.querySelectorAll(`span.highlight-censor[data-group-id="${groupId}"]`);
+  if (spans.length === 0) return;
+
+  const isCurrentlyCensored = spans[0].classList.contains("censored");
+
+  spans.forEach(span => {
+    if (isCurrentlyCensored) {
+      // Un-censor → xóa luôn highlight hoàn toàn (giống Delete)
+    deleteHighlight(groupId);
+    } else {
+      // Censor: ẩn text
+      span.classList.add("censored");
+      span.style.backgroundColor = "#000";
+      span.style.color = "#000";
+      span.style.cursor = "default";
+      // Không thay text → giữ nguyên cấu trúc DOM, chỉ ẩn bằng màu
+    }
+  });
+}
+
+/**
+ * Xóa toàn bộ highlight group
+ * - Unwrap text (khôi phục text gốc)
+ * - Xóa span wrapper hoàn toàn
+ * - Không để lại style nào
+ */
+function deleteHighlight(groupId) {
+  const spans = document.querySelectorAll(`span.highlight-censor[data-group-id="${groupId}"]`);
+
+  spans.forEach(span => {
+    const parent = span.parentNode;
+    // Khôi phục text gốc trước khi unwrap (đề phòng text đã bị thay đổi)
+    //if (span.dataset.originalText) {
+    //  span.textContent = span.dataset.originalText;
+    //}
+    // Unwrap: đưa text ra ngoài, xóa span
+    while (span.firstChild) {
+      parent.insertBefore(span.firstChild, span);
+    }
+    parent.removeChild(span);
+  });
+}
+
+/**
+ * Hiển thị menu context khi click vào highlight
+ */
+function showHighlightMenu(span, groupId, defaultColor) {
+  document.querySelectorAll(".highlight-censor-context-menu").forEach(el => el.remove());
 
   const menu = document.createElement("div");
-  menu.className = "highlight-context-menu";
+  menu.className = "highlight-censor-context-menu";
   Object.assign(menu.style, {
     position: "absolute",
     background: "#ffffff",
@@ -81,17 +121,17 @@ function showHighlightMenu(span, groupId, currentColor) {
   menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
   menu.style.left = `${rect.left + window.scrollX}px`;
 
-  // Color row (giữ nguyên như cũ, bạn có thể chỉnh)
+  // Color picker (chỉ hoạt động khi chưa censored)
   const colorRow = document.createElement("div");
   Object.assign(colorRow.style, {
     display: "flex",
     alignItems: "center",
-    marginBottom: "8px"
+    marginBottom: "10px"
   });
 
   const label = document.createElement("span");
   label.textContent = "Color:";
-  label.style.marginRight = "6px";
+  label.style.marginRight = "8px";
   colorRow.appendChild(label);
 
   const colors = ["#ffff99", "#ccffcc", "#b9e2f5", "#ffa29f", "#c0c0c0"];
@@ -99,18 +139,22 @@ function showHighlightMenu(span, groupId, currentColor) {
   colors.forEach(color => {
     const btn = document.createElement("button");
     Object.assign(btn.style, {
-      width: "22px",
-      height: "22px",
-      margin: "0 3px",
+      width: "24px",
+      height: "24px",
+      margin: "0 4px",
       backgroundColor: color,
-      border: currentColor === color ? "2px solid #555" : "1px solid #ccc",
-      borderRadius: "4px",
+      border: span.style.backgroundColor === color ? "2px solid #444" : "1px solid #bbb",
+      borderRadius: "5px",
       cursor: "pointer",
     });
 
     btn.onclick = () => {
-      document.querySelectorAll(`span.simple-highlight[data-group-id="${groupId}"]`)
-        .forEach(el => el.style.backgroundColor = color);
+      const spans = document.querySelectorAll(`span.highlight-censor[data-group-id="${groupId}"]`);
+      if (spans.length > 0 && !spans[0].classList.contains("censored")) {
+        spans.forEach(el => {
+          el.style.backgroundColor = color;
+        });
+      }
       menu.remove();
     };
     colorRow.appendChild(btn);
@@ -118,7 +162,35 @@ function showHighlightMenu(span, groupId, currentColor) {
 
   menu.appendChild(colorRow);
 
-  // Delete button (căn giữa)
+  // Nút Censor / Un-censor
+  const spans = document.querySelectorAll(`span.highlight-censor[data-group-id="${groupId}"]`);
+  const isCensored = spans.length > 0 && spans[0].classList.contains("censored");
+
+  const censorBtn = document.createElement("button");
+  censorBtn.textContent = isCensored ? "Un-censor" : "Censor";
+  Object.assign(censorBtn.style, {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    padding: "8px 0",
+    marginBottom: "8px",
+    backgroundColor: isCensored ? "#4CAF50" : "#757575",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "4px",
+    fontSize: "13px",
+    fontWeight: "500",
+    cursor: "pointer"
+  });
+
+  censorBtn.onclick = () => {
+    toggleCensor(groupId);
+    menu.remove();
+  };
+  menu.appendChild(censorBtn);
+
+  // Nút Delete
   const deleteBtn = document.createElement("button");
   deleteBtn.textContent = "Delete";
   Object.assign(deleteBtn.style, {
@@ -126,7 +198,7 @@ function showHighlightMenu(span, groupId, currentColor) {
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
-    padding: "6px 0",
+    padding: "8px 0",
     backgroundColor: "#ff4d4d",
     color: "#ffffff",
     border: "none",
@@ -136,16 +208,11 @@ function showHighlightMenu(span, groupId, currentColor) {
     cursor: "pointer"
   });
 
-  deleteBtn.onmouseover = () => { deleteBtn.style.backgroundColor = "#ff3333"; };
+  deleteBtn.onmouseover = () => { deleteBtn.style.backgroundColor = "#e63946"; };
   deleteBtn.onmouseout = () => { deleteBtn.style.backgroundColor = "#ff4d4d"; };
 
   deleteBtn.onclick = () => {
-    document.querySelectorAll(`span.simple-highlight[data-group-id="${groupId}"]`)
-      .forEach(el => {
-        const parent = el.parentNode;
-        while (el.firstChild) parent.insertBefore(el.firstChild, el);
-        parent.removeChild(el);
-      });
+    deleteHighlight(groupId);
     menu.remove();
   };
 
@@ -162,7 +229,7 @@ function showHighlightMenu(span, groupId, currentColor) {
   setTimeout(() => document.addEventListener("click", closeMenu), 0);
 }
 
-// ========== Nhận lệnh từ background ==========
+// Nhận lệnh highlight từ background
 browser.runtime.onMessage.addListener((message) => {
   if (message.action === "highlight-selection") {
     highlightCurrentSelection("#ffff99");

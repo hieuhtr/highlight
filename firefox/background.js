@@ -16,8 +16,8 @@ async function injectContentScriptToActiveTab() {
 
 browser.runtime.onInstalled.addListener(() => {
   browser.contextMenus.create({
-    id: "highlight-yellow",
-    title: "Highlight Yellow",
+    id: "highlight-censor",
+    title: "Highlight + Censor",
     contexts: ["selection"]
   });
 
@@ -27,7 +27,7 @@ browser.runtime.onInstalled.addListener(() => {
 browser.runtime.onStartup.addListener(injectContentScriptToActiveTab);
 
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId === "highlight-yellow" && info.selectionText?.trim()) {
+  if (info.menuItemId === "highlight-censor" && info.selectionText?.trim()) {
     const text = info.selectionText.trim();
 
     try {

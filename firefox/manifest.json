@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Simple Text Highlighter",
+  "name": "Highlight + Censor",
   "version": "1.0.0",
-  "description": "Highlight selected text in yellow, persists across page reloads using IndexedDB",
+  "description": "Highlight selected text and censor if needed",
   "permissions": [
     "contextMenus",
     "activeTab",
@@ -13,7 +13,6 @@
     "<all_urls>"
   ],
   "background": {
-    "service_worker": "background.js",
     "scripts": ["background.js"]
   },
   "content_scripts": [
