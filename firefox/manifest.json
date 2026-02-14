@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Highlight + Censor",
   "version": "1.0.0",
-  "description": "Highlight selected text and censor if needed",
+  "description": "Straightforward: Highlight + Censor. Use it as guides or to hide details.",
   "permissions": [
     "contextMenus",
     "activeTab",
