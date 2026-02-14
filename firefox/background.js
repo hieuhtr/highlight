@@ -7,7 +7,7 @@ async function injectContentScriptToActiveTab() {
 
     await browser.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ["content-script.js"]
+      files: ["scripts/content.js"]
     });
   } catch (err) {
     console.error("[Background] Injection failed:", err);
