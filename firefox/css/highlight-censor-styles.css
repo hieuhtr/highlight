@@ -1,7 +1,9 @@
 .highlight-censor {
   background-color: #ffff99; /* fallback */
+  color: #000 !important;
   transition: background-color 0.25s ease;
-  border-radius: 3px;
+  border-radius: 5px;
+  border: 2px;
 }
 
 .highlight-censor-context-menu {
