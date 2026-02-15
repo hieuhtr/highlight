@@ -34,3 +34,11 @@
 }
 
 /* Không cần thêm hover vì đã ẩn hoàn toàn */
+
+.highlight-image-censor-overlay {
+  transition: opacity 0.2s ease;
+}
+
+.highlight-image-censor-overlay:hover {
+  opacity: 0.85; /* nhẹ nhàng hơn khi hover */
+}

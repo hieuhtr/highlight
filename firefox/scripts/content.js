@@ -239,26 +239,34 @@ function showHighlightMenu(span, groupId, defaultColor) {
  * @param {string} srcUrl - URL của hình từ context menu
  */
 function censorCurrentImage(srcUrl) {
-  // Tìm tất cả img có src khớp (có thể nhiều img cùng src)
-  const images = document.querySelectorAll(`img[src="${CSS.escape(srcUrl)}"]`);
+  if (!srcUrl) return;
+
+  // Lấy filename từ srcUrl (phần sau dấu / cuối cùng)
+  const filename = srcUrl.split('/').pop(); // ví dụ "r48531.jpg"
+  if (!filename) return;
+
+  // Tìm tất cả img có src kết thúc bằng filename (bỏ qua params resize)
+  const images = document.querySelectorAll(`img[src$="${CSS.escape(filename)}"]`);
+
   if (images.length === 0) {
-    console.warn("Không tìm thấy hình với src:", srcUrl);
+    console.warn(`Không tìm thấy hình nào có filename: ${filename} (từ srcUrl: ${srcUrl})`);
     return;
   }
 
   images.forEach(img => {
     if (img.dataset.censored) return; // đã censor rồi
 
-    // Tạo wrapper relative nếu chưa có (để overlay absolute đúng vị trí)
+    // Tạo wrapper relative nếu cần (để overlay absolute đúng)
     let wrapper = img.parentNode;
-    if (wrapper.style.position !== "relative") {
-      wrapper = document.createElement("div");
-      wrapper.style.position = "relative";
-      wrapper.style.display = img.style.display || "inline-block";
-      wrapper.style.width = img.width ? `${img.width}px` : "auto";
-      wrapper.style.height = img.height ? `${img.height}px` : "auto";
-      img.parentNode.insertBefore(wrapper, img);
-      wrapper.appendChild(img);
+    if (getComputedStyle(wrapper).position === "static") {
+      const tempWrapper = document.createElement("div");
+      tempWrapper.style.position = "relative";
+      tempWrapper.style.display = getComputedStyle(img).display;
+      tempWrapper.style.width = img.width ? `${img.width}px` : "fit-content";
+      tempWrapper.style.height = img.height ? `${img.height}px` : "fit-content";
+      img.parentNode.insertBefore(tempWrapper, img);
+      tempWrapper.appendChild(img);
+      wrapper = tempWrapper;
     }
 
     // Tạo overlay đen
@@ -266,21 +274,17 @@ function censorCurrentImage(srcUrl) {
     overlay.className = "highlight-image-censor-overlay";
     Object.assign(overlay.style, {
       position: "absolute",
-      top: "0",
-      left: "0",
-      width: "100%",
-      height: "100%",
+      inset: "0 0 0 0",
       backgroundColor: "#000000",
       borderRadius: "5px",
       border: "2px",
-      opacity: "0.92",                  // gần đen đặc, vẫn thấy nhẹ outline
+      opacity: "1",  // đen đặc
       zIndex: "9999",
       pointerEvents: "auto",
       transition: "opacity 0.2s ease"
     });
-    overlay.dataset.sourceImageSrc = srcUrl;
+    
     wrapper.appendChild(overlay);
-
     img.dataset.censored = "true";
 
     // Hover → hiện nút Un-censor
