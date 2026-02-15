@@ -229,9 +229,143 @@ function showHighlightMenu(span, groupId, defaultColor) {
   setTimeout(() => document.addEventListener("click", closeMenu), 0);
 }
 
+// ========== Censor image logic (mới) ==========
+
+/**
+ * Censor một hình ảnh bằng overlay đen toàn bộ
+ * - Tìm img khớp srcUrl
+ * - Thêm div overlay absolute đen opacity 0.95
+ * - Lưu overlay để un-censor sau
+ * @param {string} srcUrl - URL của hình từ context menu
+ */
+function censorCurrentImage(srcUrl) {
+  // Tìm tất cả img có src khớp (có thể nhiều img cùng src)
+  const images = document.querySelectorAll(`img[src="${CSS.escape(srcUrl)}"]`);
+  if (images.length === 0) {
+    console.warn("Không tìm thấy hình với src:", srcUrl);
+    return;
+  }
+
+  images.forEach(img => {
+    if (img.dataset.censored) return; // đã censor rồi
+
+    // Tạo wrapper relative nếu chưa có (để overlay absolute đúng vị trí)
+    let wrapper = img.parentNode;
+    if (wrapper.style.position !== "relative") {
+      wrapper = document.createElement("div");
+      wrapper.style.position = "relative";
+      wrapper.style.display = img.style.display || "inline-block";
+      wrapper.style.width = img.width ? `${img.width}px` : "auto";
+      wrapper.style.height = img.height ? `${img.height}px` : "auto";
+      img.parentNode.insertBefore(wrapper, img);
+      wrapper.appendChild(img);
+    }
+
+    // Tạo overlay đen
+    const overlay = document.createElement("div");
+    overlay.className = "highlight-image-censor-overlay";
+    Object.assign(overlay.style, {
+      position: "absolute",
+      top: "0",
+      left: "0",
+      width: "100%",
+      height: "100%",
+      backgroundColor: "#000000",
+      borderRadius: "5px",
+      border: "2px",
+      opacity: "0.92",                  // gần đen đặc, vẫn thấy nhẹ outline
+      zIndex: "9999",
+      pointerEvents: "auto",
+      transition: "opacity 0.2s ease"
+    });
+    overlay.dataset.sourceImageSrc = srcUrl;
+    wrapper.appendChild(overlay);
+
+    img.dataset.censored = "true";
+
+    // Hover → hiện nút Un-censor
+    overlay.addEventListener("mouseenter", () => {
+      showImageCensorMenu(overlay, img);
+    });
+  });
+}
+
+/**
+ * Menu đơn giản cho hình censored: chỉ có nút Un-censor
+ * @param {HTMLElement} overlay - div censor đang click
+ * @param {HTMLElement} img - hình gốc
+ */
+function showImageCensorMenu(overlay, img) {
+  // Xóa menu cũ
+  document.querySelectorAll('.highlight-censor-context-menu').forEach(el => el.remove());
+
+  const menu = document.createElement("div");
+  menu.className = "highlight-censor-context-menu";
+  Object.assign(menu.style, {
+    position: "absolute",
+    background: "#ffffff",
+    border: "1px solid #d0d0d0",
+    borderRadius: "6px",
+    padding: "8px",
+    zIndex: "10002",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+    minWidth: "140px",
+    fontFamily: "system-ui, sans-serif",
+    fontSize: "13px",
+    lineHeight: "1.3"
+  });
+
+  const rect = overlay.getBoundingClientRect();
+  menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+  menu.style.left = `${rect.left + window.scrollX}px`;
+
+  // Chỉ 1 nút Un-censor
+  const unCensorBtn = document.createElement("button");
+  unCensorBtn.textContent = "Un-censor";
+  Object.assign(unCensorBtn.style, {
+    display: "block",
+    width: "100%",
+    padding: "8px 12px",
+    backgroundColor: "#4caf50",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "4px",
+    fontWeight: "500",
+    cursor: "pointer"
+  });
+
+  unCensorBtn.onmouseover = () => { unCensorBtn.style.backgroundColor = "#43a047"; };
+  unCensorBtn.onmouseout = () => { unCensorBtn.style.backgroundColor = "#4caf50"; };
+
+  unCensorBtn.onclick = () => {
+    // Xoá overlay
+    overlay.remove();
+    delete img.dataset.censored;
+    menu.remove();
+  };
+
+  menu.appendChild(unCensorBtn);
+  document.body.appendChild(menu);
+
+  // Đóng menu khi click ngoài
+  const closeMenu = (e) => {
+    if (!menu.contains(e.target)) {
+      menu.remove();
+      document.removeEventListener("click", closeMenu);
+    }
+  };
+  setTimeout(() => document.addEventListener("click", closeMenu), 0);
+}
+
 // Nhận lệnh highlight từ background
 browser.runtime.onMessage.addListener((message) => {
   if (message.action === "highlight-selection") {
     highlightCurrentSelection("#ffff99");
+  }
+
+  if (message.action === "censor-image") {
+    if (message.srcUrl) {
+      censorCurrentImage(message.srcUrl);
+    }
   }
 });

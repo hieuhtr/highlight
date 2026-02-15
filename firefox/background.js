@@ -15,10 +15,18 @@ async function injectContentScriptToActiveTab() {
 }
 
 browser.runtime.onInstalled.addListener(() => {
+  // Menu cho text selection
   browser.contextMenus.create({
     id: "highlight-censor",
     title: "Highlight + Censor",
     contexts: ["selection"]
+  });
+
+  // Menu cho image
+  browser.contextMenus.create({
+    id: "censor-image",
+    title: "Highlight + Censor",
+    contexts: ["image"]
   });
 
   injectContentScriptToActiveTab();
@@ -27,6 +35,9 @@ browser.runtime.onInstalled.addListener(() => {
 browser.runtime.onStartup.addListener(injectContentScriptToActiveTab);
 
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (!tab?.id) return;
+
+  // Xử lý menu cho text
   if (info.menuItemId === "highlight-censor" && info.selectionText?.trim()) {
     const text = info.selectionText.trim();
 
@@ -45,6 +56,27 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
           }).catch(console.error);
         }, 150);
       }
+    }
+  }
+
+  // Xử lý menu cho image
+  if (info.menuItemId === "censor-image" && info.srcUrl) {
+    try {
+      await browser.tabs.sendMessage(tab.id, {
+        action: "censor-image",
+        srcUrl: info.srcUrl,           // để match hình chính xác
+        targetElementId: info.targetElementId || null  // nếu Firefox hỗ trợ
+      });
+    } catch (err) {
+      console.error("Send censor message failed:", err);
+      // Inject lại nếu cần
+      await injectContentScriptToActiveTab();
+      setTimeout(() => {
+        browser.tabs.sendMessage(tab.id, {
+          action: "censor-image",
+          srcUrl: info.srcUrl
+        }).catch(console.error);
+      }, 150);
     }
   }
 });
