@@ -230,90 +230,129 @@ function showHighlightMenu(span, groupId, defaultColor) {
 }
 
 // ========== Censor image logic (mới) ==========
+// ========== Censor image logic (cải tiến - chính xác hơn) ==========
 
 /**
- * Censor một hình ảnh bằng overlay đen toàn bộ
- * - Tìm img khớp srcUrl
- * - Thêm div overlay absolute đen opacity 0.95
- * - Lưu overlay để un-censor sau
- * @param {string} srcUrl - URL của hình từ context menu
+ * Censor đúng một hình ảnh mà người dùng right-click
+ * Ưu tiên: targetElementId → currentSrc khớp → fallback filename
+ * @param {string} srcUrl - URL từ context menu (thường là absolute)
+ * @param {string|null} targetElementId - ID của target element (nếu browser hỗ trợ, Chrome MV3 tốt)
  */
-function censorCurrentImage(srcUrl) {
+function censorCurrentImage(srcUrl, targetElementId = null) {
   if (!srcUrl) return;
 
-  // Lấy filename từ srcUrl (phần sau dấu / cuối cùng)
-  const filename = srcUrl.split('/').pop(); // ví dụ "r48531.jpg"
-  if (!filename) return;
+  let targetImg = null;
 
-  // Tìm tất cả img có src kết thúc bằng filename (bỏ qua params resize)
-  const images = document.querySelectorAll(`img[src$="${CSS.escape(filename)}"]`);
+  // Cách 1: Ưu tiên cao nhất - dùng targetElementId (Chrome hỗ trợ tốt từ MV3)
+  if (targetElementId) {
+    try {
+      targetImg = browser.menus.getTargetElement(targetElementId);
+      if (targetImg && targetImg.tagName === 'IMG') {
+        // Xác nhận đây là <img>
+        applyCensorToImage(targetImg);
+        return; // xong sớm nếu match
+      }
+    } catch (err) {
+      console.warn("[Censor Image] targetElementId không hợp lệ:", err);
+    }
+  }
 
-  if (images.length === 0) {
-    console.warn(`Không tìm thấy hình nào có filename: ${filename} (từ srcUrl: ${srcUrl})`);
+  // Cách 2: So sánh currentSrc (absolute URL thực tế browser load)
+  // Đây là cách đáng tin cậy nhất khi không có targetElementId
+  const images = document.querySelectorAll('img');
+  for (const img of images) {
+    // currentSrc là URL đầy đủ mà browser thực sự dùng
+    if (img.currentSrc && img.currentSrc === srcUrl) {
+      targetImg = img;
+      break;
+    }
+  }
+
+  if (targetImg) {
+    applyCensorToImage(targetImg);
     return;
   }
 
-  images.forEach(img => {
-    if (img.dataset.censored) return; // đã censor rồi
+  // Cách 3: Fallback cũ (filename) - chỉ dùng khi 2 cách trên fail
+  // (ít xảy ra hơn sau khi có currentSrc)
+  const filename = srcUrl.split('/').pop().split('?')[0].split('#')[0];
+  if (!filename) return;
 
-    // Tạo wrapper relative nếu cần (để overlay absolute đúng)
-    let wrapper = img.parentNode;
-    if (getComputedStyle(wrapper).position === "static") {
-      const tempWrapper = document.createElement("div");
-      tempWrapper.style.position = "relative";
-      tempWrapper.style.display = getComputedStyle(img).display;
-      tempWrapper.style.width = img.width ? `${img.width}px` : "fit-content";
-      tempWrapper.style.height = img.height ? `${img.height}px` : "fit-content";
-      img.parentNode.insertBefore(tempWrapper, img);
-      tempWrapper.appendChild(img);
-      wrapper = tempWrapper;
-    }
+  const fallbackImages = document.querySelectorAll(`img[src$="${CSS.escape(filename)}"]`);
+  if (fallbackImages.length === 1) {
+    // Chỉ có 1 ảnh khớp filename → an toàn để censor
+    targetImg = fallbackImages[0];
+    applyCensorToImage(targetImg);
+  } else if (fallbackImages.length > 1) {
+    console.warn(`[Censor Image] Tìm thấy ${fallbackImages.length} ảnh cùng filename "${filename}". Không censor để tránh nhầm.`);
+  } else {
+    console.warn(`[Censor Image] Không tìm thấy ảnh nào khớp srcUrl: ${srcUrl}`);
+  }
+}
 
-    // Tạo overlay đen
-    const overlay = document.createElement("div");
-    overlay.className = "highlight-image-censor-overlay";
-    Object.assign(overlay.style, {
-      position: "absolute",
-      inset: "0 0 0 0",
-      backgroundColor: "#000000",
-      borderRadius: "5px",
-      border: "2px",
-      opacity: "1",  // đen đặc
-      zIndex: "9999",
-      pointerEvents: "auto",
-      transition: "opacity 0.2s ease"
-    });
-    
-    wrapper.appendChild(overlay);
-    img.dataset.censored = "true";
+/**
+ * Áp dụng overlay censor lên một <img> cụ thể
+ * @param {HTMLImageElement} img - phần tử img cần censor
+ */
+function applyCensorToImage(img) {
+  if (img.dataset.censored) return; // đã censor rồi
 
-    // Hover → hiện nút Un-censor
-    overlay.addEventListener("mouseenter", () => {
-      showImageCensorMenu(overlay, img);
-    });
+  // Tạo wrapper relative nếu parent chưa có position
+  let wrapper = img.parentNode;
+  if (getComputedStyle(wrapper).position === 'static') {
+    const tempWrapper = document.createElement('div');
+    tempWrapper.style.position = 'relative';
+    tempWrapper.style.display = getComputedStyle(img).display;
+    tempWrapper.style.width = img.width ? `${img.width}px` : 'fit-content';
+    tempWrapper.style.height = img.height ? `${img.height}px` : 'fit-content';
+
+    img.parentNode.insertBefore(tempWrapper, img);
+    tempWrapper.appendChild(img);
+    wrapper = tempWrapper;
+  }
+
+  // Tạo overlay đen
+  const overlay = document.createElement('div');
+  overlay.className = 'highlight-image-censor-overlay';
+  Object.assign(overlay.style, {
+    position: 'absolute',
+    inset: '0',
+    backgroundColor: '#000000',
+    borderRadius: img.style.borderRadius || '5px',
+    opacity: '1',
+    zIndex: '9999',
+    pointerEvents: 'auto',
+    transition: 'opacity 0.2s ease',
+  });
+
+  wrapper.appendChild(overlay);
+  img.dataset.censored = 'true';
+
+  // Hover → hiện menu Un-censor
+  overlay.addEventListener('mouseenter', () => {
+    showImageCensorMenu(overlay, img);
   });
 }
 
 /**
- * Menu đơn giản cho hình censored: chỉ có nút Un-censor
- * @param {HTMLElement} overlay - div censor đang click
- * @param {HTMLElement} img - hình gốc
+ * Menu Un-censor cho hình (giữ nguyên nhưng thêm comment)
+ * @param {HTMLElement} overlay 
+ * @param {HTMLImageElement} img 
  */
 function showImageCensorMenu(overlay, img) {
-  // Xóa menu cũ
   document.querySelectorAll('.highlight-censor-context-menu').forEach(el => el.remove());
 
-  const menu = document.createElement("div");
-  menu.className = "highlight-censor-context-menu";
+  const menu = document.createElement('div');
+  menu.className = 'highlight-censor-context-menu';
   Object.assign(menu.style, {
-    position: "absolute",
-    background: "#ffffff",
-    border: "1px solid #d0d0d0",
-    borderRadius: "6px",
-    padding: "8px",
-    zIndex: "10002",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
-    minWidth: "140px",
+    position: 'absolute',
+    background: '#ffffff',
+    border: '1px solid #d0d0d0',
+    borderRadius: '6px',
+    padding: '8px',
+    zIndex: '10002',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+    minWidth: '140px',
     fontFamily: "system-ui, sans-serif",
     fontSize: "13px",
     lineHeight: "1.3"
@@ -323,26 +362,25 @@ function showImageCensorMenu(overlay, img) {
   menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
   menu.style.left = `${rect.left + window.scrollX}px`;
 
-  // Chỉ 1 nút Un-censor
-  const unCensorBtn = document.createElement("button");
-  unCensorBtn.textContent = "Un-censor";
+  const unCensorBtn = document.createElement('button');
+  unCensorBtn.textContent = 'Un-censor';
   Object.assign(unCensorBtn.style, {
-    display: "block",
-    width: "100%",
-    padding: "8px 12px",
-    backgroundColor: "#4caf50",
-    color: "#ffffff",
-    border: "none",
-    borderRadius: "4px",
-    fontWeight: "500",
-    cursor: "pointer"
+    display: 'block',
+    width: '100%',
+    padding: '8px 12px',
+    backgroundColor: '#4caf50',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: "13px",
+    fontWeight: '500',
+    cursor: 'pointer',
   });
 
-  unCensorBtn.onmouseover = () => { unCensorBtn.style.backgroundColor = "#43a047"; };
-  unCensorBtn.onmouseout = () => { unCensorBtn.style.backgroundColor = "#4caf50"; };
+  unCensorBtn.onmouseover = () => { unCensorBtn.style.backgroundColor = '#43a047'; };
+  unCensorBtn.onmouseout  = () => { unCensorBtn.style.backgroundColor = '#4caf50'; };
 
   unCensorBtn.onclick = () => {
-    // Xoá overlay
     overlay.remove();
     delete img.dataset.censored;
     menu.remove();
@@ -351,25 +389,23 @@ function showImageCensorMenu(overlay, img) {
   menu.appendChild(unCensorBtn);
   document.body.appendChild(menu);
 
-  // Đóng menu khi click ngoài
   const closeMenu = (e) => {
     if (!menu.contains(e.target)) {
       menu.remove();
-      document.removeEventListener("click", closeMenu);
+      document.removeEventListener('click', closeMenu);
     }
   };
-  setTimeout(() => document.addEventListener("click", closeMenu), 0);
+  setTimeout(() => document.addEventListener('click', closeMenu), 0);
 }
 
-// Nhận lệnh highlight từ background
+// Cập nhật listener message từ background
 browser.runtime.onMessage.addListener((message) => {
-  if (message.action === "highlight-selection") {
-    highlightCurrentSelection("#ffff99");
+  if (message.action === 'highlight-selection') {
+    highlightCurrentSelection('#ffff99');
   }
 
-  if (message.action === "censor-image") {
-    if (message.srcUrl) {
-      censorCurrentImage(message.srcUrl);
-    }
+  if (message.action === 'censor-image') {
+    // Bây giờ nhận cả srcUrl và targetElementId (nếu có)
+    censorCurrentImage(message.srcUrl, message.targetElementId || null);
   }
 });
