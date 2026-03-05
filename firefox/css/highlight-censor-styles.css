@@ -13,7 +13,6 @@
 
 .highlight-censor-context-menu button:hover {
   opacity: 0.92;
-  transform: scale(1.01); /* zoom nhẹ khi hover, đẹp hơn */
   transition: all 0.15s ease;
 }
 
@@ -21,7 +20,7 @@
 @media (max-width: 400px) {
   .highlight-censor-context-menu {
     max-width: 90vw !important; /* chiếm gần full width màn hình nhỏ */
-    left: 5vw !important;       /* canh giữa-ish */
+    left: 5vw !important;       /* canh giữa */
   }
 }
 
@@ -29,11 +28,11 @@
 .highlight-censor.censored {
   background-color: #000 !important;
   color: #000 !important;
+  -webkit-text-fill-color: #000 !important; /* Hack cho Chrome/WebKit override link color */
   user-select: none;
+  text-decoration: none !important; /* Bỏ gạch chân link */
   cursor: default;
 }
-
-/* Không cần thêm hover vì đã ẩn hoàn toàn */
 
 .highlight-image-censor-overlay {
   transition: opacity 0.2s ease;

@@ -108,10 +108,10 @@ function showHighlightMenu(span, groupId, defaultColor) {
     background: "#ffffff",
     border: "1px solid #d0d0d0",
     borderRadius: "6px",
-    padding: "8px",
+    padding: "6px",
     zIndex: "10001",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
-    minWidth: "160px",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.18)",
+    minWidth: "100px",
     fontFamily: "system-ui, sans-serif",
     fontSize: "13px",
     lineHeight: "1.3"
@@ -126,12 +126,12 @@ function showHighlightMenu(span, groupId, defaultColor) {
   Object.assign(colorRow.style, {
     display: "flex",
     alignItems: "center",
-    marginBottom: "10px"
+    marginBottom: "6px"
   });
 
   const label = document.createElement("span");
   label.textContent = "Color:";
-  label.style.marginRight = "8px";
+  label.style.marginRight = "1px";
   colorRow.appendChild(label);
 
   const colors = ["#ffff99", "#ccffcc", "#b9e2f5", "#ffa29f", "#c0c0c0"];
@@ -141,7 +141,7 @@ function showHighlightMenu(span, groupId, defaultColor) {
     Object.assign(btn.style, {
       width: "24px",
       height: "24px",
-      margin: "0 4px",
+      margin: "0 2px",
       backgroundColor: color,
       border: span.style.backgroundColor === color ? "2px solid #444" : "1px solid #bbb",
       borderRadius: "5px",
@@ -173,8 +173,8 @@ function showHighlightMenu(span, groupId, defaultColor) {
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
-    padding: "8px 0",
-    marginBottom: "8px",
+    padding: "7px 0",
+    marginBottom: "5px",
     backgroundColor: isCensored ? "#4CAF50" : "#757575",
     color: "#ffffff",
     border: "none",
@@ -198,7 +198,7 @@ function showHighlightMenu(span, groupId, defaultColor) {
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
-    padding: "8px 0",
+    padding: "7px 0",
     backgroundColor: "#ff4d4d",
     color: "#ffffff",
     border: "none",
@@ -229,7 +229,6 @@ function showHighlightMenu(span, groupId, defaultColor) {
   setTimeout(() => document.addEventListener("click", closeMenu), 0);
 }
 
-// ========== Censor image logic (mới) ==========
 // ========== Censor image logic (cải tiến - chính xác hơn) ==========
 
 /**
@@ -335,11 +334,12 @@ function applyCensorToImage(img) {
 }
 
 /**
- * Menu Un-censor cho hình (giữ nguyên nhưng thêm comment)
- * @param {HTMLElement} overlay 
- * @param {HTMLImageElement} img 
+ * Menu đơn giản cho hình censored: chỉ có nút Un-censor
+ * @param {HTMLElement} overlay - div censor đang click
+ * @param {HTMLElement} img - hình gốc
  */
 function showImageCensorMenu(overlay, img) {
+  // Xóa menu cũ
   document.querySelectorAll('.highlight-censor-context-menu').forEach(el => el.remove());
 
   const menu = document.createElement('div');
@@ -349,10 +349,10 @@ function showImageCensorMenu(overlay, img) {
     background: '#ffffff',
     border: '1px solid #d0d0d0',
     borderRadius: '6px',
-    padding: '8px',
+    padding: '6px',
     zIndex: '10002',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
-    minWidth: '140px',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.18)',
+    minWidth: '100px',
     fontFamily: "system-ui, sans-serif",
     fontSize: "13px",
     lineHeight: "1.3"
@@ -367,7 +367,7 @@ function showImageCensorMenu(overlay, img) {
   Object.assign(unCensorBtn.style, {
     display: 'block',
     width: '100%',
-    padding: '8px 12px',
+    padding: '6px 12px',
     backgroundColor: '#4caf50',
     color: '#ffffff',
     border: 'none',
@@ -381,6 +381,7 @@ function showImageCensorMenu(overlay, img) {
   unCensorBtn.onmouseout  = () => { unCensorBtn.style.backgroundColor = '#4caf50'; };
 
   unCensorBtn.onclick = () => {
+    // Xoá overlay
     overlay.remove();
     delete img.dataset.censored;
     menu.remove();
@@ -389,6 +390,7 @@ function showImageCensorMenu(overlay, img) {
   menu.appendChild(unCensorBtn);
   document.body.appendChild(menu);
 
+  // Đóng menu khi click ngoài
   const closeMenu = (e) => {
     if (!menu.contains(e.target)) {
       menu.remove();
@@ -398,14 +400,16 @@ function showImageCensorMenu(overlay, img) {
   setTimeout(() => document.addEventListener('click', closeMenu), 0);
 }
 
-// Cập nhật listener message từ background
+// Nhận lệnh highlight từ background
 browser.runtime.onMessage.addListener((message) => {
   if (message.action === 'highlight-selection') {
     highlightCurrentSelection('#ffff99');
   }
 
-  if (message.action === 'censor-image') {
+  if (message.action === "censor-image") {
     // Bây giờ nhận cả srcUrl và targetElementId (nếu có)
-    censorCurrentImage(message.srcUrl, message.targetElementId || null);
+    if (message.srcUrl) {
+      censorCurrentImage(message.srcUrl);
+    }
   }
 });
