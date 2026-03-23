@@ -2,20 +2,22 @@
 
 ![](./overview.png)
 
-Straightforward: Highlight + Censor. Use it as guides or to hide details. 
-
-Available on both Chrome & Firefox Extension store
-- Chrome: https://chromewebstore.google.com/detail/highlight-+-censor/leofdnpplaccgbcpgkpdeedbdmcpnpih?utm_source=item-share-cb
-- Firefox: https://addons.mozilla.org/en-US/firefox/addon/highlight-censor/
-
-Features: Highlight and censor important text or images
+Features: Highlight and censor important text or images, use it as guides or to hide details
 - Select the text or image
 - Right-click
 - Choose “Highlight + Censor” from the menu
+
+Installation
+- [Chrome Webstore](https://chromewebstore.google.com/detail/highlight-+-censor/leofdnpplaccgbcpgkpdeedbdmcpnpih)
+- [Firefox Addons](https://addons.mozilla.org/en-US/firefox/addon/highlight-censor)
 
 Privacy-focused
 - No data collection
 - All highlights and censors are temporary
 - Reloading or closing the page removes everything
 
-License: MIT
+### Information
+
+- Author: Hieu Huynh
+- Implemented on March 23, 2026
+- MIT License
